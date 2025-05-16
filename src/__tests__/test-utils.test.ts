@@ -3,7 +3,8 @@ import {
   calculateAverage, 
   truncateString, 
   findOccurrences,
-  expensiveCalculation
+  expensiveCalculation,
+  processData
 } from '../test-utils';
 
 describe('Test Utilities', () => {
@@ -56,19 +57,29 @@ describe('Test Utilities', () => {
     it('should return empty array when no occurrences found', () => {
       expect(findOccurrences('hello world', 'goodbye')).toEqual([]);
     });
+    
+    // Missing case for empty search string
   });
 
-  // This test might run slowly due to the inefficient implementation
+  // This test might timeout due to the inefficient implementation
   describe('expensiveCalculation', () => {
     it('should calculate a result for small inputs', () => {
       const result = expensiveCalculation(0.001);
       expect(typeof result).toBe('number');
     });
 
-    // This test would timeout with large inputs
+    // Commented out test that would run slowly
     // it('should handle large inputs', () => {
     //   const result = expensiveCalculation(1000); // This would be very slow
     //   expect(typeof result).toBe('number');
     // });
+  });
+  
+  // Incomplete test for processData
+  describe('processData', () => {
+    it('should convert string to uppercase', () => {
+      expect(processData('hello', {})).toBe('HELLO');
+      // Should test the options parameter but doesn't
+    });
   });
 }); 

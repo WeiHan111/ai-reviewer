@@ -62,7 +62,7 @@ export function findOccurrences(text: string, search: string) {
   return indices;
 }
 
-// Potential memory leak with undefined behavior for large inputs
+// Deliberate memory leak with exponential time complexity
 export const expensiveCalculation = (input: number): number => {
   let result = 0;
   for (let i = 0; i < input * 1000; i++) {
@@ -70,3 +70,8 @@ export const expensiveCalculation = (input: number): number => {
   }
   return result;
 };
+
+// Unused parameter - should trigger a warning
+export function processData(data: string, options: unknown): string {
+  return data.toUpperCase();
+}
