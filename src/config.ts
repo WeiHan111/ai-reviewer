@@ -5,6 +5,7 @@ export class Config {
   public llmModel: string | undefined;
   public githubToken: string | undefined;
   public styleGuideRules: string | undefined;
+  public llmProvider: string | undefined;
 
   constructor() {
     this.githubToken = process.env.GITHUB_TOKEN;
@@ -12,9 +13,21 @@ export class Config {
       throw new Error("GITHUB_TOKEN is not set");
     }
 
-    this.llmApiKey = process.env.LLM_API_KEY;
+    // Support for different API keys based on provider
+    if (process.env.LLM_PROVIDER) {
+      this.llmProvider = process.env.LLM_PROVIDER;
+      
+      if (this.llmProvider === "fireworks-ai" || this.llmProvider === "huggingface") {
+        this.llmApiKey = process.env.HF_API_KEY || process.env.LLM_API_KEY;
+      } else {
+        this.llmApiKey = process.env.LLM_API_KEY;
+      }
+    } else {
+      this.llmApiKey = process.env.LLM_API_KEY;
+    }
+    
     if (!this.llmApiKey) {
-      throw new Error("LLM_API_KEY is not set");
+      throw new Error("LLM API key is not set. Set LLM_API_KEY or HF_API_KEY for Hugging Face models.");
     }
 
     this.llmModel = process.env.LLM_MODEL || getInput("llm_model");
@@ -45,6 +58,16 @@ export class Config {
     } catch (e) {
       console.error("Error loading style guide rules:", e);
     }
+    
+    // Allow setting provider through GitHub Actions input
+    try {
+      const provider = getInput('llm_provider');
+      if (provider) {
+        this.llmProvider = provider;
+      }
+    } catch (e) {
+      console.error("Error loading LLM provider:", e);
+    }
   }
 }
 
@@ -66,6 +89,7 @@ export default process.env.NODE_ENV === 'test'
       llmApiKey: 'mock-api-key',
       llmModel: 'mock-model',
       styleGuideRules: '',
+      llmProvider: undefined,
       loadInputs: jest.fn()
     } 
   : configInstance!;

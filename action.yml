@@ -15,3 +15,11 @@ inputs:
     required: false
     description: 'Custom style guide rules that will be enforced during review by generating critical comments'
     default: ''
+  llm_model:
+    required: false
+    description: 'LLM model to use for code review (including open-source models like meta-llama/Llama-3.1-8B-Instruct)'
+    default: 'gpt-4o-mini'
+  llm_provider:
+    required: false
+    description: 'LLM provider to use (e.g., "fireworks-ai" for Hugging Face models)'
+    default: ''
