@@ -54,11 +54,17 @@ export async function handlePullRequest() {
     comment.body?.includes(OVERVIEW_MESSAGE_SIGNATURE)
   );
   
+  let commitsReviewed: string[] = [];
+  let lastCommitReviewed: string | null = null;
+
   // Add support for FORCE_FULL_REVIEW environment variable
   const forceFullReview = process.env.FORCE_FULL_REVIEW === "true";
   if (forceFullReview && overviewComment) {
     info(`FORCE_FULL_REVIEW is set to true, ignoring existing overview comment`);
     overviewComment = undefined;
+    // Ensure commitsReviewed is also empty for a true full review
+    commitsReviewed = []; 
+    lastCommitReviewed = null;
   }
   
   const isIncrementalReview = !!overviewComment;
@@ -81,9 +87,8 @@ export async function handlePullRequest() {
   );
   info(`successfully fetched file diffs`);
 
-  let commitsReviewed: string[] = [];
-  let lastCommitReviewed: string | null = null;
-  if (overviewComment) {
+  // This block should only run if it's an incremental review and forceFullReview is false
+  if (isIncrementalReview && !forceFullReview && overviewComment) { 
     info(`running incremental review`);
     try {
       const payload = JSON.parse(
