@@ -251,24 +251,59 @@ async function submitReview(
   }[],
   files: FileDiff[]
 ) {
+  // DEBUG LOGGING: Add extensive logging
+  if (process.env.DEBUG) {
+    console.log("DEBUG: ===== REVIEW SUBMISSION =====");
+    console.log(`DEBUG: PR Number: ${pull_request.number}`);
+    console.log(`DEBUG: HEAD SHA being used for review: ${pull_request.headSha}`);
+    console.log(`DEBUG: Latest commits in PR: ${JSON.stringify(commits.map(c => c.sha), null, 2)}`);
+    console.log(`DEBUG: Number of comments to post: ${comments.length}`);
+    console.log(`DEBUG: Comment details: ${JSON.stringify(comments.slice(0, 2), null, 2)}`); // Just log first 2 to avoid cluttering logs
+  }
+
   const submitInlineComment = async (
     file: string,
     line: number,
     content: string
   ) => {
-    await octokit.pulls.createReviewComment({
-      ...context.repo,
-      pull_number: pull_request.number,
-      commit_id: pull_request.headSha,
-      path: file,
-      body: buildComment(content),
-      line,
-    });
+    if (process.env.DEBUG) {
+      console.log(`DEBUG: Submitting inline comment for file: ${file}, line: ${line}`);
+      console.log(`DEBUG: Using commit_id: ${pull_request.headSha}`);
+    }
+    
+    try {
+      const response = await octokit.pulls.createReviewComment({
+        ...context.repo,
+        pull_number: pull_request.number,
+        commit_id: pull_request.headSha,
+        path: file,
+        body: buildComment(content),
+        line,
+      });
+      
+      if (process.env.DEBUG) {
+        console.log(`DEBUG: Comment created successfully, ID: ${response.data.id}`);
+      }
+      
+      return response;
+    } catch (error) {
+      const errorDetails = error instanceof Error ? error.message : String(error);
+      console.error(`ERROR creating inline comment: ${errorDetails}`);
+      if (error instanceof Error && 'response' in error) {
+        // @ts-ignore
+        console.error(`ERROR response status: ${error.response?.status}, message: ${JSON.stringify(error.response?.data)}`);
+      }
+      throw error;
+    }
   };
 
   // Handle file comments
   const fileComments = comments.filter((c) => !c.end_line);
   if (fileComments.length > 0) {
+    if (process.env.DEBUG) {
+      console.log(`DEBUG: Processing ${fileComments.length} file-level comments`);
+    }
+    
     const responses = await Promise.allSettled(
       fileComments.map((c) => submitInlineComment(c.file, -1, c.content))
     );
@@ -276,6 +311,7 @@ async function submitReview(
     for (const response of responses) {
       if (response.status === "rejected") {
         warning(`error creating file comment: ${response.reason}`);
+        console.error("ERROR full details:", response.reason);
       }
     }
   }
@@ -291,6 +327,10 @@ async function submitReview(
     }
   }
 
+  if (process.env.DEBUG) {
+    console.log(`DEBUG: Processing ${lineComments.length} line comments (${skippedComments.length} non-critical comments skipped)`);
+  }
+
   // Try to submit all comments at once
   try {
     let commentsData = lineComments.map((c) => ({
@@ -304,6 +344,11 @@ async function submitReview(
         c.start_line && c.start_line < c.end_line ? "RIGHT" : undefined,
     }));
 
+    if (process.env.DEBUG) {
+      console.log(`DEBUG: Attempting batch review creation with ${commentsData.length} comments`);
+      console.log(`DEBUG: First comment data: ${JSON.stringify(commentsData[0], null, 2)}`);
+    }
+
     const review = await octokit.pulls.createReview({
       ...context.repo,
       pull_number: pull_request.number,
@@ -311,7 +356,11 @@ async function submitReview(
       comments: commentsData,
     });
 
-    await octokit.pulls.submitReview({
+    if (process.env.DEBUG) {
+      console.log(`DEBUG: Review created successfully, ID: ${review.data.id}`);
+    }
+
+    const submitResponse = await octokit.pulls.submitReview({
       ...context.repo,
       pull_number: pull_request.number,
       review_id: review.data.id,
@@ -324,16 +373,43 @@ async function submitReview(
         skippedComments
       ),
     });
+
+    if (process.env.DEBUG) {
+      console.log(`DEBUG: Review submitted successfully, URL: ${submitResponse.data.html_url}`);
+    }
   } catch (error) {
     warning(`error submitting review: ${error}`);
+    console.error("ERROR full details:", error);
+
+    if (error instanceof Error && 'response' in error) {
+      // @ts-ignore
+      console.error(`ERROR response status: ${error.response?.status}, message: ${JSON.stringify(error.response?.data)}`);
+    }
 
     // If submitting all comments at once fails, try submitting them one by one
     info("trying to submit comments one by one");
-    await Promise.allSettled(
+    const individualResponses = await Promise.allSettled(
       lineComments.map((c) =>
         submitInlineComment(c.file, c.end_line, c.content)
       )
     );
+    
+    if (process.env.DEBUG) {
+      const succeeded = individualResponses.filter(r => r.status === "fulfilled").length;
+      const failed = individualResponses.filter(r => r.status === "rejected").length;
+      console.log(`DEBUG: Individual comment submission results: ${succeeded} succeeded, ${failed} failed`);
+      
+      // Log failures
+      individualResponses.forEach((result, index) => {
+        if (result.status === "rejected") {
+          console.error(`DEBUG: Comment #${index} failed: ${result.reason}`);
+        }
+      });
+    }
+  }
+  
+  if (process.env.DEBUG) {
+    console.log("DEBUG: ===== REVIEW SUBMISSION COMPLETE =====");
   }
 }
 
