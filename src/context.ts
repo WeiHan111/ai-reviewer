@@ -15,11 +15,31 @@ async function loadDebugContext(): Promise<Context> {
   const octokit = getOctokit(process.env.GITHUB_TOKEN);
 
   const [owner, repo] = process.env.GITHUB_REPOSITORY?.split("/") || [];
+  
+  let pullNumber: number;
+  
+  if (context.payload.pull_request?.number) {
+    pullNumber = context.payload.pull_request.number;
+  } 
+  else if (process.env.GITHUB_PULL_REQUEST && !isNaN(parseInt(process.env.GITHUB_PULL_REQUEST))) {
+    pullNumber = parseInt(process.env.GITHUB_PULL_REQUEST);
+  } 
+  else if (process.env.GITHUB_REF && process.env.GITHUB_REF.startsWith('refs/pull/')) {
+    const match = process.env.GITHUB_REF.match(/refs\/pull\/(\d+)/);
+    if (match && match[1]) {
+      pullNumber = parseInt(match[1]);
+    } else {
+      pullNumber = 1; // Default fallback if GITHUB_REF format is unexpected
+    }
+  }
+  else {
+    pullNumber = 1; // Default fallback if no other source provides a PR number
+  }
 
   const { data: pull_request } = await octokit.rest.pulls.get({
     owner,
     repo,
-    pull_number: parseInt(process.env.GITHUB_PULL_REQUEST || "1"),
+    pull_number: pullNumber,
   });
 
   const commentId = process.env.GITHUB_COMMENT_ID;

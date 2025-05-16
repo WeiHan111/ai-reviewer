@@ -150,3 +150,46 @@ If you find Presubmit helpful in improving the review process:
 - Share your experience by creating a [GitHub Issue](https://github.com/presubmit/ai-reviewer/issues)
 - Follow me on [X/Twitter](https://x.com/bdstanga) for updates
 - Consider [contributing](CONTRIBUTING.md) to make it even better
+
+## Using Open-Source Models
+
+This project now supports open-source models like Llama 3, in addition to the closed-source models from OpenAI, Anthropic, and Google.
+
+### Using Llama 3.1 with Fireworks AI
+
+To use Llama 3.1 models via Fireworks AI:
+
+1. Get an API key from [Fireworks AI](https://fireworks.ai/)
+2. Set the following environment variables:
+   ```
+   LLM_PROVIDER=fireworks-ai
+   HF_API_KEY=your_fireworks_api_key
+   LLM_MODEL=meta-llama/Llama-3.1-8B-Instruct
+   ```
+   Note: You can use the human-readable model name shown above, and the system will automatically map it to the correct Fireworks API model identifier.
+
+3. Or, configure it in your GitHub Actions workflow:
+   ```yaml
+   - name: Run AI Reviewer
+     uses: presubmit/ai-reviewer@v1
+     with:
+       llm_provider: fireworks-ai
+       llm_model: meta-llama/Llama-3.1-8B-Instruct
+     env:
+       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+       HF_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
+   ```
+
+### Supported Open-Source Models
+
+The following open-source models are currently supported:
+
+- `meta-llama/Llama-3.1-8B-Instruct` - Llama 3.1 8B Instruct model (recommended)
+- `meta-llama/Llama-3.1-70B-Instruct` - Llama 3.1 70B Instruct model
+- `mistralai/Mistral-7B-Instruct-v0.2` - Mistral 7B Instruct model
+
+These models are accessed through Fireworks AI and use the following API identifiers internally:
+
+- `accounts/fireworks/models/llama-v3p1-8b-instruct` (for Llama 3.1 8B)
+- `accounts/fireworks/models/llama-v3p1-70b-instruct` (for Llama 3.1 70B)
+- `accounts/fireworks/models/mistral-7b-instruct-v0.2` (for Mistral 7B)

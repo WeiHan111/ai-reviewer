@@ -17,12 +17,31 @@ jobs:
     steps:
       - name: Check required secrets
         run: |
-          if [ -z "${{ secrets.LLM_API_KEY }}" ]; then
-            echo "Error: LLM_API_KEY secret is not configured"
+          # For traditional models (Claude, GPT, Gemini)
+          if [ -z "${{ secrets.LLM_PROVIDER }}" ] && [ -z "${{ secrets.LLM_API_KEY }}" ]; then
+            echo "Error: LLM_API_KEY secret is not configured for traditional LLM providers"
             exit 1
           fi
+          
+          # For Fireworks AI / HuggingFace models
+          if [ "${{ secrets.LLM_PROVIDER }}" == "fireworks-ai" ] && [ -z "${{ secrets.HF_API_KEY }}" ] && [ -z "${{ secrets.LLM_API_KEY }}" ]; then
+            echo "Error: When using fireworks-ai provider, either HF_API_KEY or LLM_API_KEY must be configured"
+            exit 1
+          fi
+      
+      # Example for using Claude (default)
       - uses: presubmit/ai-reviewer@latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_MODEL: "claude-3-5-sonnet-20241022"
+        if: ${{ !secrets.LLM_PROVIDER }}
+
+      # Example for using Fireworks AI / open-source models (when LLM_PROVIDER is set)
+      - uses: WeiHan111/ai-reviewer@open_source_models
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HF_API_KEY: ${{ secrets.HF_API_KEY || secrets.LLM_API_KEY }}
+          LLM_PROVIDER: ${{ secrets.LLM_PROVIDER }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL || 'meta-llama/Llama-3.1-8B-Instruct' }}
+        if: ${{ secrets.LLM_PROVIDER == 'fireworks-ai' || secrets.LLM_PROVIDER == 'huggingface' }}
