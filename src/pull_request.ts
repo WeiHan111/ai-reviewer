@@ -53,6 +53,14 @@ export async function handlePullRequest() {
   let overviewComment = existingComments.find((comment) =>
     comment.body?.includes(OVERVIEW_MESSAGE_SIGNATURE)
   );
+  
+  // Add support for FORCE_FULL_REVIEW environment variable
+  const forceFullReview = process.env.FORCE_FULL_REVIEW === "true";
+  if (forceFullReview && overviewComment) {
+    info(`FORCE_FULL_REVIEW is set to true, ignoring existing overview comment`);
+    overviewComment = undefined;
+  }
+  
   const isIncrementalReview = !!overviewComment;
 
   // Maybe fetch review comments
