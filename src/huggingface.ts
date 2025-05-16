@@ -140,46 +140,124 @@ export function createHuggingFace(options: HuggingFaceOptions) {
       const content = response.object.message.content;
       let parsedContent;
       
+      // Add extensive debug logging
+      if (process.env.DEBUG) {
+        console.log("=================== DEBUG RESPONSE CONTENT ===================");
+        console.log("Raw response content:");
+        console.log(content);
+        console.log("Content type:", typeof content);
+        console.log("Content length:", content?.length);
+        console.log("=============================================================");
+      }
+      
       try {
         // Try to parse as JSON first
+        if (process.env.DEBUG) console.log("Attempting direct JSON parse...");
         parsedContent = JSON.parse(content);
+        if (process.env.DEBUG) console.log("Direct JSON parse succeeded!");
       } catch (e) {
+        if (process.env.DEBUG) {
+          console.log("Direct JSON parse failed with error:", e instanceof Error ? e.message : String(e));
+        }
+        
         // If not valid JSON, check if the content contains structured data that can be parsed
         if (typeof content === 'string') {
           try {
             // First, try to clean the content if it's wrapped in a code block
+            if (process.env.DEBUG) console.log("Attempting to clean content from code blocks...");
             const cleanedContent = content.replace(/^```(?:json)?\s*/m, '').replace(/\s*```$/m, '');
+            
+            if (process.env.DEBUG) {
+              console.log("Cleaned content:");
+              console.log(cleanedContent);
+            }
+            
             try {
               parsedContent = JSON.parse(cleanedContent);
+              if (process.env.DEBUG) console.log("JSON parse with cleaned content succeeded!");
             } catch (cleanError) {
+              if (process.env.DEBUG) {
+                console.log("Clean content JSON parse failed with error:", 
+                  cleanError instanceof Error ? cleanError.message : String(cleanError));
+              }
+              
               // If cleaning didn't work, try more aggressive regex matching
+              if (process.env.DEBUG) console.log("Attempting regex extraction...");
               // This regex can handle multi-line nested JSON better than the previous one
               const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+              
+              if (process.env.DEBUG) {
+                console.log("Regex match result:", jsonMatch ? "Found a match" : "No match");
+                if (jsonMatch) {
+                  console.log("Extracted content:");
+                  console.log(jsonMatch[1]);
+                }
+              }
+              
               if (jsonMatch && jsonMatch[1]) {
                 try {
                   parsedContent = JSON.parse(jsonMatch[1]);
+                  if (process.env.DEBUG) console.log("JSON parse with regex extraction succeeded!");
                 } catch (matchError) {
+                  if (process.env.DEBUG) {
+                    console.log("Regex extraction JSON parse failed with error:", 
+                      matchError instanceof Error ? matchError.message : String(matchError));
+                  }
                   // If all extraction attempts fail, use raw content
+                  if (process.env.DEBUG) console.log("All parsing attempts failed, using raw content");
                   parsedContent = content;
                 }
               } else {
                 // If no JSON found, use the raw content
+                if (process.env.DEBUG) console.log("No regex match found, using raw content");
                 parsedContent = content;
               }
             }
           } catch (jsonError) {
             // If all extraction attempts fail, use raw content
+            if (process.env.DEBUG) {
+              console.log("Overall JSON parsing failed with error:", 
+                jsonError instanceof Error ? jsonError.message : String(jsonError));
+              console.log("Using raw content");
+            }
             parsedContent = content;
           }
         } else {
+          if (process.env.DEBUG) console.log("Content is not a string, using as is");
           parsedContent = content;
         }
+      }
+      
+      if (process.env.DEBUG) {
+        console.log("=================== PARSED CONTENT ===================");
+        console.log("Type:", typeof parsedContent);
+        console.log("Value:", 
+          typeof parsedContent === 'object' ? JSON.stringify(parsedContent, null, 2) : parsedContent);
+        console.log("=======================================================");
       }
       
       const result = schema.safeParse(parsedContent);
       
       if (!result.success) {
+        if (process.env.DEBUG) {
+          console.log("=================== SCHEMA VALIDATION ERROR ===================");
+          console.log("Schema validation failed:");
+          console.log(JSON.stringify(result.error.errors, null, 2));
+          
+          // Print schema details
+          console.log("Expected schema:");
+          try {
+            console.log("Schema type:", schema.constructor.name);
+          } catch (e) {
+            console.log("Could not describe schema:", e);
+          }
+          console.log("==============================================================");
+        }
         throw new Error(`Failed to parse response: ${JSON.stringify(result.error.errors, null, 2)}`);
+      }
+      
+      if (process.env.DEBUG) {
+        console.log("Schema validation succeeded!");
       }
       
       return {
