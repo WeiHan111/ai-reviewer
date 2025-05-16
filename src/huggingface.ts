@@ -147,13 +147,25 @@ export function createHuggingFace(options: HuggingFaceOptions) {
         // If not valid JSON, check if the content contains structured data that can be parsed
         if (typeof content === 'string') {
           try {
-            // Try to extract JSON from the string (sometimes LLMs include markdown code blocks)
-            const jsonMatch = content.match(/```(?:json)?\s*(\{.*?\})\s*```/s);
-            if (jsonMatch && jsonMatch[1]) {
-              parsedContent = JSON.parse(jsonMatch[1]);
-            } else {
-              // If no JSON found, use the raw content
-              parsedContent = content;
+            // First, try to clean the content if it's wrapped in a code block
+            const cleanedContent = content.replace(/^```(?:json)?\s*/m, '').replace(/\s*```$/m, '');
+            try {
+              parsedContent = JSON.parse(cleanedContent);
+            } catch (cleanError) {
+              // If cleaning didn't work, try more aggressive regex matching
+              // This regex can handle multi-line nested JSON better than the previous one
+              const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+              if (jsonMatch && jsonMatch[1]) {
+                try {
+                  parsedContent = JSON.parse(jsonMatch[1]);
+                } catch (matchError) {
+                  // If all extraction attempts fail, use raw content
+                  parsedContent = content;
+                }
+              } else {
+                // If no JSON found, use the raw content
+                parsedContent = content;
+              }
             }
           } catch (jsonError) {
             // If all extraction attempts fail, use raw content
