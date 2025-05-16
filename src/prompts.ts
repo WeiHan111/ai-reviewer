@@ -37,6 +37,22 @@ export async function runSummaryPrompt(
 - Start the overview with a verb at past tense like "Started", "Commented", "Generated" etc...
 
 IMPORTANT: Do not make assumptions about the code outside the diff. Do not assume variable could be optional if you don't see the type declaration. Do not suggest null checks unless you are sure this could lead to a runtime error.
+
+EXTREMELY IMPORTANT: ALWAYS RESPOND WITH VALID JSON in the following format and nothing else - not even markdown code delimiters:
+{
+  "title": "Brief summary of PR",
+  "description": "Detailed description of changes",
+  "files": [
+    {
+      "filename": "path/to/file.ts",
+      "summary": "Summary of changes to this file",
+      "title": "Brief file change title"
+    }
+  ],
+  "type": ["ONE_OR_MORE_TYPES"]
+}
+
+The type field should include one or more of: "BUG", "TESTS", "ENHANCEMENT", "DOCUMENTATION", "SECURITY", "OTHER"
 \n`;
 
   let userPrompt = `
@@ -58,7 +74,7 @@ ${pr.files.map((file) => `- ${file.status}: ${file.filename}`).join("\n")}
 ${pr.files.map((file) => formatFileDiff(file)).join("\n\n")}
 </File Diffs>
 
-Make sure each affected file is summarized and it's part of the returned JSON.
+REMEMBER: You must ONLY return a valid JSON object matching the specified format - no text before or after the JSON, and no code block formatting. Return just the raw JSON object.
 `;
 
   const fileSchema = z.object({
@@ -190,6 +206,29 @@ __new hunk__
 - If you cannot find any actionable comments, return an empty array.
 - VERY IMPORTANT: Keep in mind you're only seeing part of the code, and the code might be incomplete. Do not make assumptions about the code outside the diff.
 
+EXTREMELY IMPORTANT: Your response MUST be in valid JSON format and ONLY valid JSON - no markdown code blocks, no text before or after. The response should be formatted exactly as:
+{
+  "review": {
+    "estimated_effort_to_review": <number 1-5>,
+    "score": <number 0-100>,
+    "has_relevant_tests": <boolean>,
+    "security_concerns": <string>
+  },
+  "comments": [
+    {
+      "file": <string>,
+      "start_line": <number>,
+      "end_line": <number>,
+      "highlighted_code": <string>,
+      "header": <string>,
+      "content": <string>,
+      "label": <string>,
+      "critical": <boolean>
+    },
+    ...
+  ]
+}
+
 ${config.styleGuideRules && config.styleGuideRules.length > 0
       ? `Guidelines for the review, such as style guides, conventions, or best practices, violating the following guidelines should result in a critical comment:
 ${config.styleGuideRules}`
@@ -240,6 +279,8 @@ ${pr.prSummary}
 <PR File Diffs>
 ${pr.files.map((file) => generateFileCodeDiff(file)).join("\n\n")}
 </PR File Diffs>
+
+REMEMBER: You must ONLY return a valid JSON object without any text before or after, and without code block formatting. Output raw JSON only.
 `;
 
   const commentSchema = z.object({
@@ -347,6 +388,14 @@ In your response, return the exact text of your comment, in markdown, starting b
 Comments from @presubmit are yours.
 
 IMPORTANT: Do not respond with generic comments like "Thanks for the PR!" or "LGTM" or "Let me know if you need any help". If the input comment is not actionable, return an empty string. Do not offer to help unless asked.
+
+EXTREMELY IMPORTANT: Your response MUST be in valid JSON format and ONLY valid JSON - no markdown code blocks, no text before or after. Your response must match exactly this format:
+{
+  "response_comment": "Your markdown comment text here, mentioning @user",
+  "action_requested": true|false
+}
+
+The action_requested field should be set to true if you're asking the user to make a change or provide additional information, and false if you're just providing information.
 `;
 
   const startLine =
@@ -372,9 +421,11 @@ ${commentThread.comments
   </Hunk>
 </Comment Scope>
 
-<Comment File Diff>
+<Relevant File Diff>
 ${generateFileCodeDiff(commentFileDiff)}
-</Comment File Diff>
+</Relevant File Diff>
+
+REMEMBER: You MUST respond with a valid JSON object only. No text before or after, no markdown code blocks.
 `;
 
   const schema = z.object({
