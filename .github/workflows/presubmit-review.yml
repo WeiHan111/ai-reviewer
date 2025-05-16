@@ -21,3 +21,4 @@ jobs:
           HF_API_KEY: ${{ secrets.HF_API_TOKEN }}
           LLM_PROVIDER: fireworks-ai
           LLM_MODEL: meta-llama/Llama-3.1-8B-Instruct
+          DEBUG: true
