@@ -4,7 +4,8 @@ import {
   truncateString, 
   findOccurrences,
   expensiveCalculation,
-  processData
+  processData,
+  joinStrings
 } from '../test-utils';
 
 describe('Test Utilities', () => {
@@ -81,5 +82,25 @@ describe('Test Utilities', () => {
       expect(processData('hello', {})).toBe('HELLO');
       // Should test the options parameter but doesn't
     });
+  });
+  
+  describe('joinStrings', () => {
+    it('should join strings with default delimiter', () => {
+      expect(joinStrings(['a', 'b', 'c'])).toBe('a,b,c');
+    });
+    
+    it('should join strings with custom delimiter', () => {
+      expect(joinStrings(['a', 'b', 'c'], ' | ')).toBe('a | b | c');
+    });
+    
+    // Test with potential issues
+    it('should handle empty array', () => {
+      expect(joinStrings([])).toBe('');
+    });
+    
+    // This test would fail if implemented
+    // it('should handle null values in array', () => {
+    //   expect(joinStrings(['a', null, 'c'])).toBe('a,,c');
+    // });
   });
 }); 

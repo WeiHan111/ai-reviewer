@@ -75,3 +75,14 @@ export const expensiveCalculation = (input: number): number => {
 export function processData(data: string, options: unknown): string {
   return data.toUpperCase();
 }
+
+/**
+ * Concatenates an array of strings with a delimiter
+ * @param strings Array of strings to join
+ * @param delimiter The separator to use (defaults to comma)
+ */
+export function joinStrings(strings: string[], delimiter: string = ','): string {
+  // Potential issue: no validation for empty array
+  // Also no handling for null/undefined values in the array
+  return strings.join(delimiter);
+}
