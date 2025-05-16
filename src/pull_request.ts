@@ -124,9 +124,24 @@ export async function handlePullRequest() {
     info(`running full review`);
   }
 
+  // More debug logging
+  if (process.env.DEBUG) {
+    console.log("DEBUG: Before commitsToReview calculation:");
+    console.log("DEBUG: forceFullReview:", forceFullReview);
+    console.log("DEBUG: isIncrementalReview:", isIncrementalReview);
+    console.log("DEBUG: overviewComment exists:", !!overviewComment);
+    console.log("DEBUG: All commits from PR:", JSON.stringify(commits.map(c => c.sha), null, 2));
+    console.log("DEBUG: commitsReviewed:", JSON.stringify(commitsReviewed, null, 2));
+  }
+
   const commitsToReview = commitsReviewed.length
     ? commits.filter((c) => !commitsReviewed.includes(c.sha))
     : commits;
+  
+  if (process.env.DEBUG) {
+    console.log("DEBUG: commitsToReview:", JSON.stringify(commitsToReview.map(c => c.sha), null, 2));
+  }
+
   if (commitsToReview.length === 0) {
     info(`no new commits to review`);
     return;
